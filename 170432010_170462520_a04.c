@@ -18,29 +18,77 @@ Matthew Dietrich    170462520   Git: ThePark0ur
 
 void readFile(char* fileName, int** Customer, int CC);
 int countLines(char* fileName);
+void InputParser(char* input, int resourceCount);
 
 int main(int argc, char* argv[]){
     if (argc < 2){
         printf("Error: No maximum resource amounts given.\n");
         return -1;
     }
-    for (int i = 0; i < argc; i++){
-        printf("%s\n", argv[i]);
-    }
+    int resourceCount = argc - 1;
+    
+
     int cusArray[5][4] = {
         {6, 4, 7, 3}, {4, 2, 3, 2}, {2, 5, 3, 3}, {6, 3, 3, 2}, {5, 6, 7, 5}};
     // Customer* cust = NULL;
     // int CustomerCount = readFile("Sample4_in.txt",&cust);
-    int CustomerCount = countLines("sample4_in.txt");
-    int Customer[CustomerCount][argc-1];
-    int* CustomerPointer = &Customer[0][0];
-    printf("We out here\n");
-    readFile("sample4_in.txt", &CustomerPointer, CustomerCount);
+    // int CustomerCount = countLines("sample4_in.txt");
+    // int Customer[CustomerCount][argc-1];
+    // int* CustomerPointer = &Customer[0][0];
+    //readFile("sample4_in.txt", &CustomerPointer, CustomerCount);
 
-
-    printf("not brokeennnn\n");
+    char* input;
+    scanf("%s", input);
+    while (memcmp("Run", input, 3) != 0){
+        InputParser(input, resourceCount);
+        scanf("%s", input);
+    }
+    InputParser(input, resourceCount); //Catches final Run request
+    
+    printf("End Reached\n");
     return 0;
 }
+
+/*
+Compare user input to request, release, print status, or run scenario
+Takes string input and number of resources, and calls relevant function
+*/
+void InputParser(char* input, int resourceCount){
+    int resources[resourceCount];
+    if (memcmp("RQ", input, 2) == 0){ //Requesting resources
+        for(int i = 0; i < resourceCount; i++){ //Retrieve values
+            scanf("%d", &resources[i]);
+        }
+        printf("Give resources\n");
+        printf("Call safety check\n");
+        printf("If unstable, release resources\n");
+    }
+    else if (memcmp("RL", input, 2) == 0){ //Releasing resources
+        for(int i = 0; i < resourceCount; i++){ //Retrieve values
+            scanf("%d", &resources[i]);
+        }
+        printf("Release resources\n");
+    }
+    else if (memcmp("*", input, 1) == 0){ //Report on resource usage
+        for(int i = 0; i < resourceCount; i++){ //Clear buffer
+            scanf("%d");
+        }
+        printf("Call status report function\n");
+    }
+    else if (memcmp("Run", input, 3) == 0){ //Begin execution of threads
+        for(int i = 0; i < resourceCount; i++){ //Clear buffer
+            scanf("%d");
+        }
+        printf("Begin execution function\n");
+    }
+    else{
+        printf("Unexpected Command. Please re-enter.\n");
+        for(int i = 0; i < 10; i++){ //Clear buffer of anything that might be clogging it
+            scanf("%s");
+        }
+    }
+}
+
 
 //Reads input file and creates 2D matrix of customer resource maximums
 void readFile(char* fileName, int** Customer, int CC){ 
