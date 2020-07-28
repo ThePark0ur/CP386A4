@@ -126,3 +126,7 @@ int countLines(char* fileName){
 
     return CustomerCount;
 }
+
+int safetyAlgo(int request[][]){
+	
+}
