@@ -39,13 +39,13 @@ int main(int argc, char* argv[]){
 
     char* input;
     scanf("%s", input);
-    while (memcmp("Run", input, 3) != 0){
-        InputParser(input, resourceCount);
+    InputParser(input, resourceCount);
+    while (strcmp(input, "Run") != 0){
         scanf("%s", input);
+        InputParser(input, resourceCount);
     }
-    InputParser(input, resourceCount); //Catches final Run request
     
-    printf("End Reached\n");
+    printf("\nEnd of program reached\n");
     return 0;
 }
 
@@ -54,8 +54,11 @@ Compare user input to request, release, print status, or run scenario
 Takes string input and number of resources, and calls relevant function
 */
 void InputParser(char* input, int resourceCount){
+    int clientID;
     int resources[resourceCount];
+
     if (memcmp("RQ", input, 2) == 0){ //Requesting resources
+        scanf("%d", &clientID);
         for(int i = 0; i < resourceCount; i++){ //Retrieve values
             scanf("%d", &resources[i]);
         }
@@ -64,29 +67,23 @@ void InputParser(char* input, int resourceCount){
         printf("If unstable, release resources\n");
     }
     else if (memcmp("RL", input, 2) == 0){ //Releasing resources
+        scanf("%d", &clientID);
         for(int i = 0; i < resourceCount; i++){ //Retrieve values
             scanf("%d", &resources[i]);
         }
         printf("Release resources\n");
     }
     else if (memcmp("*", input, 1) == 0){ //Report on resource usage
-        for(int i = 0; i < resourceCount; i++){ //Clear buffer
-            scanf("%d");
-        }
         printf("Call status report function\n");
     }
     else if (memcmp("Run", input, 3) == 0){ //Begin execution of threads
-        for(int i = 0; i < resourceCount; i++){ //Clear buffer
-            scanf("%d");
-        }
         printf("Begin execution function\n");
     }
     else{
         printf("Unexpected Command. Please re-enter.\n");
-        for(int i = 0; i < 10; i++){ //Clear buffer of anything that might be clogging it
-            scanf("%s");
-        }
     }
+    fflush(stdin); //Clear buffer of anything that might be clogging it
+    return;
 }
 
 
