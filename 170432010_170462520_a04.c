@@ -27,13 +27,15 @@ int main(int argc, char* argv[]){
     for (int i = 0; i < argc; i++){
         printf("%s\n", argv[i]);
     }
-    //Customer* cust = NULL;
-    //int CustomerCount = readFile("Sample4_in.txt",&cust);
-    int CustomerCount = countLines("Sample4_in.txt");
+    int cusArray[5][4] = {
+        {6, 4, 7, 3}, {4, 2, 3, 2}, {2, 5, 3, 3}, {6, 3, 3, 2}, {5, 6, 7, 5}};
+    // Customer* cust = NULL;
+    // int CustomerCount = readFile("Sample4_in.txt",&cust);
+    int CustomerCount = countLines("sample4_in.txt");
     int Customer[CustomerCount][argc-1];
     int* CustomerPointer = &Customer[0][0];
     printf("We out here\n");
-    readFile("Sample4_in.txt", &CustomerPointer, CustomerCount);
+    readFile("sample4_in.txt", &CustomerPointer, CustomerCount);
 
 
     printf("not brokeennnn\n");
@@ -82,7 +84,7 @@ void readFile(char* fileName, int** Customer, int CC){
 		token =  strtok(lines[k],",");
 		while(token!=NULL)
 		{
-            Customer[k][j] = atoi(token);
+            (Customer)[k][j]= atoi(token);
 			j++;
 			token = strtok(NULL,",");
 		}
