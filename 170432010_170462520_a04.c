@@ -26,12 +26,12 @@ int main(int argc, char* argv[]){
         return -1;
     }
     int resourceCount = argc - 1; //Holds max amount of each resource
-    int globalMaxs[resourceCount]; //Array to hold global maximums for each resource
+    int globalAvail[resourceCount]; //Array to hold global maximums for each resource
     int CustomerCount = countLines("sample4_in.txt");
     printf("Number of Customers: %d\nCurrently Available Resources: ", CustomerCount);
     for (int i = 0; i < resourceCount; i++){
-        globalMaxs[i] = atoi(argv[i+1]);
-        printf("%d ", globalMaxs[i]);
+        globalAvail[i] = atoi(argv[i+1]);
+        printf("%d ", globalAvail[i]);
     }
     printf("\n");
     
@@ -93,6 +93,7 @@ void InputParser(char* input, int resourceCount){
     fflush(stdin); //Clear buffer of anything that might be clogging it
     return;
 }
+
 
 
 //Reads input file and creates 2D matrix of customer resource maximums
