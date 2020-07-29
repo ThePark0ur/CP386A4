@@ -25,7 +25,15 @@ int main(int argc, char* argv[]){
         printf("Error: No maximum resource amounts given.\n");
         return -1;
     }
-    int resourceCount = argc - 1;
+    int resourceCount = argc - 1; //Holds max amount of each resource
+    int globalMaxs[resourceCount]; //Array to hold global maximums for each resource
+    int CustomerCount = countLines("sample4_in.txt");
+    printf("Number of Customers: %d\nCurrently Available Resources: ", CustomerCount);
+    for (int i = 0; i < resourceCount; i++){
+        globalMaxs[i] = atoi(argv[i+1]);
+        printf("%d ", globalMaxs[i]);
+    }
+    printf("\n");
     
 
     int cusArray[5][4] = {
@@ -137,7 +145,7 @@ void readFile(char* fileName, int** Customer, int CC){
 	return;
 }
 
-
+//Counts lines in input file to determine number of customers
 int countLines(char* fileName){
     //Check the file exists
 	FILE *in = fopen(fileName, "r");
