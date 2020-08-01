@@ -16,6 +16,11 @@ Matthew Dietrich    170462520   Git: ThePark0ur
 //#include <pthread.h>
 //#include <semaphore.h>
 
+typedef struct client{
+    int **Max;
+    int **Allocated;
+} Client;
+
 void readFile(char* fileName, int** Customer, int CC);
 int countLines(char* fileName);
 void InputParser(char* input, int resourceCount);
