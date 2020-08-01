@@ -17,11 +17,15 @@ Matthew Dietrich    170462520   Git: ThePark0ur
 //#include <semaphore.h>
 
 typedef struct client{
-    int **Max;
-    int **Allocated;
+    int ClientID; //The ID of the client
+    int *Max; //Max resources a client will need
+    int *Allocated; //Number of resources a client currently has allocated
+    int *Needed; //Number of resources still needed to run
+    short Ran; //For safe sequence processing
+    short Sequence; //For safe sequence position storing
 } Client;
 
-void readFile(char* fileName, int** Customer, int CC);
+void readFile(char* fileName, Client** clients, int CC);
 int countLines(char* fileName);
 void InputParser(char* input, int resourceCount);
 
@@ -40,9 +44,20 @@ int main(int argc, char* argv[]){
     }
     printf("\n");
     
-
-    int cusArray[5][4] = {
-        {6, 4, 7, 3}, {4, 2, 3, 2}, {2, 5, 3, 3}, {6, 3, 3, 2}, {5, 6, 7, 5}};
+    Client* clients = malloc(sizeof(Client)*CustomerCount);
+    //Loop through clients and initialize properties
+    for(int i = 0; i<CustomerCount; i++){
+        clients[i].ClientID = i;
+        clients[i].Ran = 0;
+        clients[i].Sequence = -1;
+        clients[i].Max = malloc(sizeof(int)*resourceCount);
+        clients[i].Allocated = malloc(sizeof(int)*resourceCount);
+        clients[i].Needed = malloc(sizeof(int)*resourceCount);
+    }
+    printf("Entering the functionnnn\n");
+    readFile("sample4_in.txt", &clients, CustomerCount);
+    printf("Exiting the functionnnn\n");
+    int cusArray[5][4] = {{6, 4, 7, 3}, {4, 2, 3, 2}, {2, 5, 3, 3}, {6, 3, 3, 2}, {5, 6, 7, 5}};
     // Customer* cust = NULL;
     // int CustomerCount = readFile("Sample4_in.txt",&cust);
     // int CustomerCount = countLines("sample4_in.txt");
@@ -95,14 +110,14 @@ void InputParser(char* input, int resourceCount){
     else{
         printf("Unexpected Command. Please re-enter.\n");
     }
-    fflush(stdin); //Clear buffer of anything that might be clogging it
+    fflush(stdin); //Clear input buffer of anything that might be clogging it
     return;
 }
 
 
 
 //Reads input file and creates 2D matrix of customer resource maximums
-void readFile(char* fileName, int** Customer, int CC){ 
+void readFile(char* fileName, Client** clients, int CC){ 
     //Check the file exists
 	FILE *in = fopen(fileName, "r");
 	if(!in){
@@ -110,10 +125,9 @@ void readFile(char* fileName, int** Customer, int CC){
 		return;
 	}
 
+
     //Copy contents of file into memory and close file
-	struct stat st;
-	fstat(fileno(in), &st);
-	char* fileContent = (char*)malloc(((int)st.st_size+1)* sizeof(char));
+	char* fileContent = (char*)malloc((10000));
 	fileContent[0]='\0';	
 	while(!feof(in)){
 		char line[100];
@@ -124,6 +138,7 @@ void readFile(char* fileName, int** Customer, int CC){
 	}
 	fclose(in);
 
+    printf("%s\n", fileContent); //For TESTING
     //Split each customer into resource values
 	char* lines[CC];
 	char* command = NULL;
@@ -133,8 +148,11 @@ void readFile(char* fileName, int** Customer, int CC){
 		lines[i] = malloc(sizeof(command)*sizeof(char));
 		strcpy(lines[i],command);
 		i++;
+        printf("line i: %c\n", lines[i]); //For TESTING
 		command = strtok(NULL,"\r\n");
 	}
+
+    printf("got done splittin values\n"); //For TESTING
 
     //Track resource maximum values for each customer
 	for(int k=0; k<CC; k++){
@@ -143,7 +161,9 @@ void readFile(char* fileName, int** Customer, int CC){
 		token =  strtok(lines[k],",");
 		while(token!=NULL)
 		{
-            (Customer)[k][j]= atoi(token);
+            clients[k]->Max[j] = atoi(token);
+            clients[k]->Allocated[j] = 0;
+            clients[k]->Needed[j] = atoi(token);
 			j++;
 			token = strtok(NULL,",");
 		}
