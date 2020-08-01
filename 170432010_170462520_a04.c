@@ -16,6 +16,7 @@ Matthew Dietrich    170462520   Git: ThePark0ur
 //#include <pthread.h>
 //#include <semaphore.h>
 
+
 typedef struct client{
     int ClientID; //The ID of the client
     int *Max; //Max resources a client will need
