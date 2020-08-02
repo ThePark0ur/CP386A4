@@ -8,7 +8,9 @@
 * Run current sequence
 * Request resources (RQ)
 * Release resources (RL)
-Motivation: To achieve a 12 in this course
+
+## Motivation: 
+<pre>To achieve a <b>12</b> in this course</pre>
 
 ## Tests:
 	osc@ubuntu:~/CP386A4/$ ./a.out 10 10 10 10
