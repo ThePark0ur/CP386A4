@@ -52,7 +52,7 @@ make
 ## Individual Contributions:
 Matthew: - ```Request(), Release(), ReadFile(), SilentRequest(), SilentRelease(), InputParser();```
 
-Kamran: - ```SafetyAlgo(), ClientExec(), Run(), runLoop();```
+Kamran: - ```SafetyAlgo(), ClientExec(), Run();```
 
 ## Credits:
 Kamran and Matthew
