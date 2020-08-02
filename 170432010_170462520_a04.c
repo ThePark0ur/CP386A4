@@ -5,10 +5,6 @@
 #include <string.h>
 #include <unistd.h>
 
-#define FALSE 0
-#define TRUE 1
-#define SIZE 100
-
 typedef struct Client {
   int clientNum; 
   int orderNum; 
