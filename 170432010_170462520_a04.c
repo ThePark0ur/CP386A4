@@ -6,203 +6,336 @@ Kamran Tayyab       170432010   Git: Kamran14
 Matthew Dietrich    170462520   Git: ThePark0ur
 */
 
-//Include Statements
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
 #include <unistd.h>
-#include <sys/stat.h>
-#include <time.h>
-//#include <pthread.h>
-//#include <semaphore.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdbool.h>
+#include <pthread.h>
 
-
-typedef struct client{
-    int ClientID; //The ID of the client
-    int *Max; //Max resources a client will need
-    int *Allocated; //Number of resources a client currently has allocated
-    int *Needed; //Number of resources still needed to run
-    short Ran; //For safe sequence processing
-    short Sequence; //For safe sequence position storing
+typedef struct client // Represents a single thread
+{
+    int clientNum; 
+    int orderNum; 
+    pthread_t threadHandle;
+    int returnVal; 
 } Client;
 
-void readFile(char* fileName, Client** clients, int CC);
-int countLines(char* fileName);
-void InputParser(char* input, int resourceCount);
+int ReadFile (char* fileName);
+void Request(char* command);
+void SilentRequest(char* command);
+void Release(char* command);
+void SilentRelease(char* command);
+void Star();
+void Run(Client** clients);
+int SafetyAlgorithm();
+void* threadExec(void* t);
+int InputParser(char* input);
 
-int main(int argc, char* argv[]){
-    if (argc < 2){
-        printf("Error: No maximum resource amounts given.\n");
-        return -1;
-    }
-    int resourceCount = argc - 1; //Holds max amount of each resource
-    int globalAvail[resourceCount]; //Array to hold global maximums for each resource
-    int CustomerCount = countLines("sample4_in.txt");
-    printf("Number of Customers: %d\nCurrently Available Resources: ", CustomerCount);
-    for (int i = 0; i < resourceCount; i++){
-        globalAvail[i] = atoi(argv[i+1]);
-        printf("%d ", globalAvail[i]);
-    }
+int ClientCount; //Number of clients
+int ResourceCount; //Number of resources
+char **CommandLineArgs = NULL; //To allow access to command line arguments globally
+
+int *Available = NULL, **Max = NULL, **Allocation = NULL, **Need = NULL;//Matrices which will hold resource information in relation to clients
+int *safeSeq = NULL, *tempSeq = NULL, *work = NULL, *finish = NULL; //For use in safe sequence processing
+Client* clients = NULL; //Stores array of clients as given in input text
+pthread_mutex_t mutex; //Mutex lock
+
+
+int main(int argc, char **argv){
+
+	clients = (Client*) malloc(sizeof(Client)*ClientCount); //Size out the clients array to hold each line
+	char *command = (char*) malloc(50);
+	if (argc < 2){
+		printf("Error: No maximum resource amounts given.\n");
+		return -1;
+	}
+
+	ResourceCount = argc-1;
+	CommandLineArgs = argv;
+	ReadFile("sample4_in.txt");
+
+    //Print out known info
+	printf("Number of Clients: %d\n", ClientCount);
+	printf("Currently Available Resources: ");
+	for (int i = 0; i < ResourceCount; i++){
+		printf("%d ", Available[i]);
+	}
     printf("\n");
-    
-    Client* clients = malloc(sizeof(Client)*CustomerCount);
-    //Loop through clients and initialize properties
-    for(int i = 0; i<CustomerCount; i++){
-        clients[i].ClientID = i;
-        clients[i].Ran = 0;
-        clients[i].Sequence = -1;
-        clients[i].Max = malloc(sizeof(int)*resourceCount);
-        clients[i].Allocated = malloc(sizeof(int)*resourceCount);
-        clients[i].Needed = malloc(sizeof(int)*resourceCount);
-    }
-    printf("Entering the functionnnn\n");
-    readFile("sample4_in.txt", &clients, CustomerCount);
-    printf("Exiting the functionnnn\n");
-    int cusArray[5][4] = {{6, 4, 7, 3}, {4, 2, 3, 2}, {2, 5, 3, 3}, {6, 3, 3, 2}, {5, 6, 7, 5}};
-    // Customer* cust = NULL;
-    // int CustomerCount = readFile("Sample4_in.txt",&cust);
-    // int CustomerCount = countLines("sample4_in.txt");
-    // int Customer[CustomerCount][argc-1];
-    // int* CustomerPointer = &Customer[0][0];
-    //readFile("sample4_in.txt", &CustomerPointer, CustomerCount);
 
-    char* input;
-    scanf("%s", input);
-    InputParser(input, resourceCount);
-    while (strcmp(input, "Run") != 0){
-        scanf("%s", input);
-        InputParser(input, resourceCount);
-    }
-    
-    printf("\nEnd of program reached\n");
-    return 0;
+	//Get user input until run is entered.
+    int finish = 0; //Used to determine when to exit while loop
+	while (finish == 0){
+		printf("Enter Request: ");
+		fgets(command, 25, stdin); //Take user input
+		finish = InputParser(command);//Parse the input and call relevant function
+	}
+
+	return 0;
 }
 
-/*
-Compare user input to request, release, print status, or run scenario
-Takes string input and number of resources, and calls relevant function
-*/
-void InputParser(char* input, int resourceCount){
+int InputParser(char* input){
     int clientID;
-    int resources[resourceCount];
 
-    if (memcmp("RQ", input, 2) == 0){ //Requesting resources
-        scanf("%d", &clientID);
-        for(int i = 0; i < resourceCount; i++){ //Retrieve values
-            scanf("%d", &resources[i]);
-        }
-        printf("Give resources\n");
-        printf("Call safety check\n");
-        printf("If unstable, release resources\n");
+    if (memcmp("RQ", input, 2) == 0){ //Requesting Resources
+        Request(input);
     }
-    else if (memcmp("RL", input, 2) == 0){ //Releasing resources
-        scanf("%d", &clientID);
-        for(int i = 0; i < resourceCount; i++){ //Retrieve values
-            scanf("%d", &resources[i]);
-        }
-        printf("Release resources\n");
+    else if (memcmp("RL", input, 2) == 0){ //Releasing Resources
+        Release(input);
     }
     else if (memcmp("*", input, 1) == 0){ //Report on resource usage
-        printf("Call status report function\n");
+        Star();
     }
     else if (memcmp("Run", input, 3) == 0){ //Begin execution of threads
-        printf("Begin execution function\n");
+		Run(&clients);
+        return 1;
     }
     else{
         printf("Unexpected Command. Please re-enter.\n");
     }
     fflush(stdin); //Clear input buffer of anything that might be clogging it
-    return;
+    return 0;
 }
 
 
+int ReadFile(char* fileName){ //Takes input from the sample input file
 
-//Reads input file and creates 2D matrix of customer resource maximums
-void readFile(char* fileName, Client** clients, int CC){ 
-    //Check the file exists
-	FILE *in = fopen(fileName, "r");
-	if(!in){
-		printf("Error: Couldn't open file.\n");
+	ClientCount = 0;
+	FILE *fh = fopen(fileName, "r");
+	char fPointer;
+
+	if(!fh){
+		printf("Error: File not found\n");
+		return -1;
+	}
+
+	//Determine number of clients in the input file
+	fPointer = fgetc(fh);
+	while (fPointer != EOF){
+        if (fPointer == '\n'){
+            ClientCount++; //Increase number of clients (rows in file)
+        }
+        fPointer = fgetc(fh); //Move to the next character.
+    }
+	ClientCount++;
+
+	//Set up informational matrices for use with Safety Algorithm
+	Available = (int *)malloc(ResourceCount * sizeof(int*)); //Shows resources available
+	Max = (int **)malloc(ClientCount * sizeof(int *)); //Shows max required resources 
+    Allocation = (int **)malloc(ClientCount * sizeof(int *)); //Shows how many resources are currently allocated
+    Need = (int **)malloc(ClientCount * sizeof(int *)); //Shows the remaining resources needed by each function
+
+    //Create second dimension
+	for (int i=0; i < ClientCount; i++){
+         Max[i] = (int *)malloc(ResourceCount * sizeof(int));
+         Allocation[i] = (int *)malloc(ResourceCount * sizeof(int));
+         Need[i] = (int *)malloc(ResourceCount * sizeof(int));
+	}
+
+    //Set up known array values:
+	//Move given resource amounts into proper variable
+	for (int i=1; i <= (ResourceCount); i++){
+		Available[i-1] = atoi(*(CommandLineArgs+i));
+	}
+    //Allocation array will begin at 0
+	for (int i = 0; i < ClientCount; i++){
+		for (int j = 0; j < ResourceCount; j++){
+			Allocation[i][j] = 0;
+		}
+	}
+
+	fseek(fh, 0, SEEK_SET);
+
+	char *temp;
+    int i = 0, j = 0;
+	fPointer = fgetc(fh);
+    
+	while (fPointer != EOF){
+		if (fPointer != ',' && fPointer != '\n'){
+			temp = &fPointer;
+
+            //Max and need will begin at the same number (Allocation is at 0 across all Clients)
+			Max[i][j] = atoi(temp);
+			Need[i][j] = atoi(temp);
+			j++;
+
+			if (j == ResourceCount){
+				j = 0;
+				i++;
+			}
+		}
+		fPointer = fgetc(fh);
+	}
+	
+	return 0;
+}
+
+void Request(char* command){
+	char* CommandBackup = (char*) malloc(50);
+	strcpy(CommandBackup, command); //Save copy of command for use in release if needed
+
+	char *token = strtok(command, " "); //Seperate RQ from informational sections of command
+	int cID = atoi(strtok(NULL, " ")); //Retrieve the ClientID
+	int resourceVal; //Initialize variable to hold resource value being modified
+	int valid = 0; //Verifies if request is able to be fulfilled (Does not include Safe State Check)
+
+	if (cID >= ClientCount){
+		printf("Error: Invalid Client Number.\n");
 		return;
 	}
 
-
-    //Copy contents of file into memory and close file
-	char* fileContent = (char*)malloc((10000));
-	fileContent[0]='\0';	
-	while(!feof(in)){
-		char line[100];
-		if(fgets(line,100,in)!=NULL)
-		{
-			strncat(fileContent,line,strlen(line));
+    int j = 0;
+	token = strtok(NULL, " "); //Retrieve next resource value being requested
+	while (token != NULL){
+		resourceVal = atoi(token);
+        //Allocate the resource amount to the thread
+        Allocation[cID][j] = Allocation[cID][j] + resourceVal;
+		Available[j] = Available[j] - resourceVal;
+		Need[cID][j] = Need[cID][j] - resourceVal;
+        //Process whether allocation is possible
+		if (Need[cID][j] < 0){ //Too many resources were requested, thread overcapacity. Will not be filled.
+			valid = -1;
 		}
-	}
-	fclose(in);
-
-    printf("%s\n", fileContent); //For TESTING
-    //Split each customer into resource values
-	char* lines[CC];
-	char* command = NULL;
-	int i=0;
-	command = strtok(fileContent,"\r\n");
-	while(command!=NULL){
-		lines[i] = malloc(sizeof(command)*sizeof(char));
-		strcpy(lines[i],command);
-		i++;
-        printf("line i: %c\n", lines[i]); //For TESTING
-		command = strtok(NULL,"\r\n");
+		if (Available[j] < 0){ //Not enough resources are available. Will not be filled.
+			valid = -2;
+			
+		}
+		j++;
+		token = strtok(NULL, " ");
 	}
 
-    printf("got done splittin values\n"); //For TESTING
+	switch (valid){
+		case -1:
+			printf("Error: Thread requested more resources than maximum allowed. Request denied\n");
+			break;
+		case -2:
+			printf("Error: Thread requested more resources than currently available. Request denied\n");
+			break;
+	}
 
-    //Track resource maximum values for each customer
-	for(int k=0; k<CC; k++){
-		char* token = NULL;
-        int j = 0;
-		token =  strtok(lines[k],",");
-		while(token!=NULL)
-		{
-            clients[k]->Max[j] = atoi(token);
-            clients[k]->Allocated[j] = 0;
-            clients[k]->Needed[j] = atoi(token);
-			j++;
-			token = strtok(NULL,",");
+    if (valid != 0) {
+		SilentRelease(CommandBackup); //Release resources and return to previous state
+		return;
+	}
+
+	int safe = SafetyAlgorithm(); //Checks if safe state is possible. 0 if able, -1 otherwise
+	if (safe == -1){
+		printf("Error: No safe state possible. Request denied.\n");
+		SilentRelease(CommandBackup); //Release resources back to previous safe state
+	}else{
+		printf("Request valid and safe. Request Accepted. \n");
+	}
+}
+
+//Similar to request, but does not print confirmations or denials. Use to reverse changes
+void SilentRequest(char* command){
+	char *token = strtok(command, " "); //Seperate RQ from informational sections of command
+	int cID = atoi(strtok(NULL, " ")); //Retrieve the ClientID
+	int resourceVal; //Initialize variable to hold resource value being modified
+    int j = 0;
+	token = strtok(NULL, " "); //Retrieve next resource value being requested
+	while (token != NULL){
+		resourceVal = atoi(token);
+        //Allocate the resource amount to the thread
+        Allocation[cID][j] = Allocation[cID][j] + resourceVal;
+		Available[j] = Available[j] - resourceVal;
+		Need[cID][j] = Need[cID][j] - resourceVal;
+		j++;
+		token = strtok(NULL, " ");
+	}
+}
+
+void Release(char* command){
+	char* CommandBackup = (char*) malloc(50);
+	strcpy(CommandBackup, command); //Save copy of command for use in request if needed
+	char *token = strtok(command, " "); //Remove unnecessary parts of the request
+	int cID = atoi(strtok(NULL, " ")); //Retrieve the ClientID
+	int j = 0;
+	int error = 0;
+	int resourceVal; //Initialize variable to hold resource value being modified
+
+	if (cID >= ClientCount){
+		printf("Error: Invalid Client Number.\n");
+		return;
+	}
+
+    token = strtok(NULL, " "); //Get resource value to modify by
+	while (token != NULL){
+		resourceVal = atoi(token);
+		Allocation[cID][j] = Allocation[cID][j] - resourceVal; //Remove resources from amount allocated
+		Need[cID][j] = Need[cID][j] + resourceVal; //Resources must be added back to the needed counter
+        Available[j] = Available[j] + resourceVal; //Add the value back to globally available resources
+
+		if (Allocation[cID][j] < 0){ //If request would attempt to release more resources than the client currently holds, deny it
+			error = 1;
 		}
+		j++;
+		token = strtok(NULL, " ");
+	}
+	if (error){
+		printf("Error: More resource being released than client has allocated. Release denied.\n");
+		SilentRequest(CommandBackup);
+	}else{
+		printf("Release request is valid. Release Accepted\n");
+	}
+}
+
+//Similar to release, but does not print confirmations or denials. Use to reverse changes
+void SilentRelease(char* command){
+	char *token = strtok(command, " "); //Remove unnecessary parts of the request
+	int cID = atoi(strtok(NULL, " ")); //Retrieve the ClientID
+	int j = 0;
+	int resourceVal; //Initialize variable to hold resource value being modified
+
+    token = strtok(NULL, " "); //Get resource value to modify by
+	while (token != NULL){
+		resourceVal = atoi(token);
+		Allocation[cID][j] = Allocation[cID][j] - resourceVal; //Remove resources from amount allocated
+		Need[cID][j] = Need[cID][j] + resourceVal; //Resources must be added back to the needed counter
+        Available[j] = Available[j] + resourceVal; //Add the value back to globally available resources
+		j++;
+		token = strtok(NULL, " ");
 	}
 	return;
 }
 
-//Counts lines in input file to determine number of customers
-int countLines(char* fileName){
-    //Check the file exists
-	FILE *in = fopen(fileName, "r");
-	if(!in){
-		printf("Error: Couldn't open file.\n");
-		return -1;
+void Star(){
+	printf("Available Resources: \n");
+	for (int j = 0; j < ResourceCount; j++){
+		printf("%d ", Available[j]);
 	}
 
-    //Copy contents of file into memory and close file
-	struct stat st;
-	fstat(fileno(in), &st);
-	char* fileContent = (char*)malloc(((int)st.st_size+1)* sizeof(char));
-	fileContent[0]='\0';	
-	while(!feof(in)){
-		char line[100];
-		if(fgets(line,100,in)!=NULL)
-		{
-			strncat(fileContent,line,strlen(line));
+	printf("\nMaximum Resources by Client: ");
+	for (int i = 0; i < ClientCount; i++){
+        printf("\nClient %d\t", i);
+		for (int j = 0; j < ResourceCount; j++){
+			printf("%d ", Max[i][j]);
 		}
 	}
-	fclose(in);
 
-    //Count lines and begin allocating memory for data struct
-	char* command = NULL;
-	int CustomerCount = 0;
-	command = strtok(fileContent,"\r\n");
-	while(command!=NULL){
-		CustomerCount++;
-		command = strtok(NULL,"\r\n");
+	printf("\nCurrently Allocated Resources by Client: ");
+	for (int i = 0; i < ClientCount; i++){
+        printf("\nClient %d\t", i);
+		for (int j = 0; j < ResourceCount; j++){
+			printf("%d ", Allocation[i][j]);
+		}
 	}
 
-    return CustomerCount;
+	printf("\nCurrent Resources Needed by Client: ");
+	for (int i = 0; i < ClientCount; i++){
+        printf("\nClient %d\t", i);
+		for (int j = 0; j < ResourceCount; j++){
+			printf("%d ", Need[i][j]);
+		}
+	}
+	printf("\n");
+}
+
+
+int SafetyAlgorithm(){
+	return 0;
+}
+
+void Run(Client **clients){
+	return;
 }
