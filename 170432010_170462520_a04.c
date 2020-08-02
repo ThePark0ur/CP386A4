@@ -6,12 +6,12 @@ Kamran Tayyab       170432010   Git: Kamran14
 Matthew Dietrich    170462520   Git: ThePark0ur
 */
 
-#include <unistd.h>
+#include <pthread.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdbool.h>
-#include <pthread.h>
+#include <unistd.h>
 
 typedef struct client // Represents a single thread
 {
@@ -28,16 +28,17 @@ void Release(char* command);
 void SilentRelease(char* command);
 void Star();
 void Run(Client** clients);
-int SafetyAlgorithm();
-void* threadExec(void* t);
+int SafetyAlgo();
+void* ClientExec(void* t);
 int InputParser(char* input);
+
 
 int ClientCount; //Number of clients
 int ResourceCount; //Number of resources
 char **CommandLineArgs = NULL; //To allow access to command line arguments globally
 
 int *Available = NULL, **Max = NULL, **Allocation = NULL, **Need = NULL;//Matrices which will hold resource information in relation to clients
-int *safeSeq = NULL, *tempSeq = NULL, *work = NULL, *finish = NULL; //For use in safe sequence processing
+int *safeResources = NULL, *sequenceTemp = NULL, *AmountLeft = NULL, *done = NULL; //For use in safe sequence processing
 Client* clients = NULL; //Stores array of clients as given in input text
 pthread_mutex_t mutex; //Mutex lock
 
@@ -55,7 +56,7 @@ int main(int argc, char **argv){
 	CommandLineArgs = argv;
 	ReadFile("sample4_in.txt");
 
-    //Print out known info
+    //printf out known info
 	printf("Number of Clients: %d\n", ClientCount);
 	printf("Currently Available Resources: ");
 	for (int i = 0; i < ResourceCount; i++){
@@ -75,8 +76,6 @@ int main(int argc, char **argv){
 }
 
 int InputParser(char* input){
-    int clientID;
-
     if (memcmp("RQ", input, 2) == 0){ //Requesting Resources
         Request(input);
     }
@@ -218,7 +217,7 @@ void Request(char* command){
 		return;
 	}
 
-	int safe = SafetyAlgorithm(); //Checks if safe state is possible. 0 if able, -1 otherwise
+	int safe = SafetyAlgo(); //Checks if safe state is possible. 0 if able, -1 otherwise
 	if (safe == -1){
 		printf("Error: No safe state possible. Request denied.\n");
 		SilentRelease(CommandBackup); //Release resources back to previous safe state
@@ -227,7 +226,7 @@ void Request(char* command){
 	}
 }
 
-//Similar to request, but does not print confirmations or denials. Use to reverse changes
+//Similar to request, but does not printf confirmations or denials. Use to reverse changes
 void SilentRequest(char* command){
 	char *token = strtok(command, " "); //Seperate RQ from informational sections of command
 	int cID = atoi(strtok(NULL, " ")); //Retrieve the ClientID
@@ -280,7 +279,7 @@ void Release(char* command){
 	}
 }
 
-//Similar to release, but does not print confirmations or denials. Use to reverse changes
+//Similar to release, but does not printf confirmations or denials. Use to reverse changes
 void SilentRelease(char* command){
 	char *token = strtok(command, " "); //Remove unnecessary parts of the request
 	int cID = atoi(strtok(NULL, " ")); //Retrieve the ClientID
@@ -332,10 +331,228 @@ void Star(){
 }
 
 
-int SafetyAlgorithm(){
+void *ClientExec(void *t) { //Called from pthread
+
+	//Mutex lock to determine critical section order
+	pthread_mutex_lock(&mutex);
+
+	//Crit Section...
+	char *InputArray = (char *)malloc(50);
+	int *intArray = (int *)malloc(50);
+	int number;
+
+	//Establish new need array
+	for (int i = 0; i < ResourceCount; i++) {
+		int number = Need[((Client *)t)->clientNum][i];
+		intArray[i] = number;
+	}
+
+	//Create a request string for the client
+	InputArray[0] = 'R';
+	InputArray[1] = 'Q';
+	InputArray[2] = ' ';
+	InputArray[3] = ((Client *)t)->clientNum + '0';
+	InputArray[4] = ' ';
+
+	//Insert needed amount of resource into request string
+	int j = 0;
+	for (int i = 5; i < 12; i = i + 2) {
+		InputArray[i] = intArray[j] + '0';
+		InputArray[i + 1] = ' ';
+		j++;
+	}
+
+	printf("\tClient %i has started\n", ((Client *)t)->clientNum);
+
+	//Request remaining resources
+	printf("\tRequest all needed resources\n        ");
+	SilentRequest(InputArray);
+
+	//Print out updated matrices
+	printf("New Need Array:   ");
+	for (int j = 0; j < ResourceCount; j++) {
+		printf(" %i", Need[((Client*)t)->clientNum][j]);
+	}
+	printf("\n");
+
+	printf("\tNew Allocation Array:   ");
+	for (int j = 0; j < ResourceCount; j++) {
+		printf(" %i", Allocation[((Client*)t)->clientNum][j]);
+	}
+	printf("\n");
+
+	printf("\tNew Available Array:   ");
+	for (int j = 0; j < ResourceCount; j++) {
+		printf("%i ", Available[j]);
+	}
+	printf("\n");
+
+	//Verify state is safe
+	printf("\tState still safe: ");
+	int safe = SafetyAlgo();
+	(safe == 0) ? printf(" Yes\n") : printf(" No\n");
+
+	printf("\tClient %i has finished\n", ((Client *)t)->clientNum);
+
+	// After Client finishes execution, create another char array and int array to
+	// store values of allocated resources
+	int *intArray2 = (int *)malloc(50);
+	for (int i = 0; i < ResourceCount; i++) {
+		number = Allocation[((Client *)t)->clientNum][i];
+		intArray2[i] = number;
+	}
+
+	// Initiate InputArray so that it contains 'RL' and the Client number
+	InputArray[0] = 'R';
+	InputArray[1] = 'L';
+	InputArray[2] = ' ';
+	InputArray[3] = ((Client *)t)->clientNum + '0';
+	InputArray[4] = ' ';
+
+	// Put the allocated resources from intArray2 to InputArray
+	j = 0;
+	for (int i = 5; i < 12; i += 2) {
+		InputArray[i] = intArray2[j] + '0';
+		InputArray[i + 1] = ' ';
+		j++;
+	}
+
+	// Release all allocated resources for the given Client
+	printf("\tClient is releasing resources\n");
+	SilentRelease(InputArray);
+
+	// Display the new available matrix (all resource instances should now be
+	// available)
+	
+	printf("\tNow available:");
+	for (int i = 0; i < ResourceCount; i++) {
+		printf(" %i", Available[i]);
+	}
+	printf("\n");
+
+	// Critical section ends here
+
+	// Unlock the mutex so that the next Client can access it
+	pthread_mutex_unlock(&mutex);
+
+	// Upon completion, terminate the Client
+	pthread_exit(0);
 	return 0;
 }
 
-void Run(Client **clients){
-	return;
+void Run(Client **clients) { 
+	if (pthread_mutex_init(&mutex, NULL) != 0) {
+		printf("Failed mutex init \n");
+		return;
+	}
+
+	printf("\nCurrent State:");
+	switch(SafetyAlgo()){
+		case -1:
+			printf("Not safe\n");
+			printf("Currently not in safe state.\n");
+			break;
+		case 0:
+			printf("Safe\n");
+			break;
+		default:
+			break;
+	}
+	printf("Safe Sequence is: < ");
+	for (int i = 0; i < ClientCount; i++) {
+		printf("%i ", safeResources[i]);
+		(*clients)[i].clientNum = safeResources[i];
+		(*clients)[i].orderNum = i;
+	}
+	printf(">\n");
+
+	sequenceTemp = safeResources;
+
+	printf("Now going to execute the clients:\n\n");
+	for (int i = 0; i < ClientCount; i++) {
+		printf("----------------------------------------\n");
+		printf("--> Customer/Client %i\n", sequenceTemp[i]);
+
+		//List number of resources the Client currently needs
+		printf("\tNeed:   ");
+		for (int j = 0; j < ResourceCount; j++) {
+			printf(" %i", Need[sequenceTemp[i]][j]);
+		}
+		printf("\n");
+
+		printf("\tAllocated resources:   ");
+		for (int j = 0; j < ResourceCount; j++) {
+			printf(" %i", Allocation[sequenceTemp[i]][j]);
+		}
+		printf("\n");
+		
+		printf("        Available:   ");
+		for (int j = 0; j < ResourceCount; j++) {
+			printf(" %i", Available[j]);
+		}
+		printf("\n");
+
+		(*clients)[i].returnVal = pthread_create(&((*clients)[i].threadHandle), NULL, ClientExec, &((*clients)[i]));
+
+		pthread_join((*clients)[i].threadHandle, NULL);
+	}
+
+	//Once finished with the critical sections of each client, clean up mutex locks
+	pthread_mutex_destroy(&mutex);
+}
+
+
+int SafetyAlgo() {
+	int safe = 0, isLocated = 1, columnCount = ResourceCount, sequenceNum = 0;
+
+	safeResources = (int *)malloc(ClientCount * sizeof(int));
+	AmountLeft = (int *)malloc(ResourceCount * sizeof(int));
+	done = (int *)malloc(ClientCount * sizeof(int));
+
+	for (int i = 0; i < ClientCount; i++) {
+		safeResources[i] = -1;
+		done[i] = 0;
+	}
+
+	for (int i = 0; i < ResourceCount; i++) {
+		AmountLeft[i] = Available[i];
+	}
+
+	while(isLocated && !safe){
+		isLocated = 0;
+		for (int i = 0; i < ClientCount;i++){
+			if(!done[i]){
+				columnCount = 0;
+				int j = 0;
+				while(j<ResourceCount){
+					if(Need[i][j] < 0 || AmountLeft[j] < 0){
+						safe = -1;
+						break;
+					}
+					if(Need[i][j] > AmountLeft[j]){
+						break;
+					}else{
+						columnCount++;
+					}
+					if(columnCount == ResourceCount){
+						safeResources[sequenceNum] = i;
+						sequenceNum += 1, done[i] = 1, isLocated = 1;
+						for (int g = 0; g < ResourceCount; g++){
+							AmountLeft[g] += Allocation[i][g];
+						}
+					}
+					j++;
+				}
+			}
+		}
+	}
+
+
+	for (int i = 0; i < ClientCount; i++) {
+		if (!done[i]) {
+			safe = -1;
+		}
+	}
+
+	return safe;
 }
