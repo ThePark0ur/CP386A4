@@ -13,7 +13,7 @@ Matthew Dietrich    170462520   Git: ThePark0ur
 #include <string.h>
 #include <unistd.h>
 
-typedef struct client // Represents a single thread
+typedef struct client //Represents a single client
 {
     int clientNum; 
     int orderNum; 
@@ -373,43 +373,36 @@ void *ClientExec(void *t) { //Called from pthread
 	for (int j = 0; j < ResourceCount; j++) {
 		printf(" %i", Need[((Client*)t)->clientNum][j]);
 	}
-	printf("\n");
 
-	printf("\tNew Allocation Array:   ");
+	printf("\n\tNew Allocation Array:   ");
 	for (int j = 0; j < ResourceCount; j++) {
 		printf(" %i", Allocation[((Client*)t)->clientNum][j]);
 	}
-	printf("\n");
 
-	printf("\tNew Available Array:   ");
+	printf("\n\tNew Available Array:   ");
 	for (int j = 0; j < ResourceCount; j++) {
 		printf("%i ", Available[j]);
 	}
-	printf("\n");
 
 	//Verify state is safe
-	printf("\tState still safe: ");
+	printf("\n\tState still safe: ");
 	int safe = SafetyAlgo();
-	(safe == 0) ? printf(" Yes\n") : printf(" No\n");
+	(safe == 0) ? printf("Yes\n") : printf("No\n");
 
 	printf("\tClient %i has finished\n", ((Client *)t)->clientNum);
-
-	// After Client finishes execution, create another char array and int array to
-	// store values of allocated resources
 	int *intArray2 = (int *)malloc(50);
 	for (int i = 0; i < ResourceCount; i++) {
 		number = Allocation[((Client *)t)->clientNum][i];
 		intArray2[i] = number;
 	}
 
-	// Initiate InputArray so that it contains 'RL' and the Client number
+	//Initiate array to hold the release request
 	InputArray[0] = 'R';
 	InputArray[1] = 'L';
 	InputArray[2] = ' ';
 	InputArray[3] = ((Client *)t)->clientNum + '0';
 	InputArray[4] = ' ';
 
-	// Put the allocated resources from intArray2 to InputArray
 	j = 0;
 	for (int i = 5; i < 12; i += 2) {
 		InputArray[i] = intArray2[j] + '0';
@@ -417,25 +410,23 @@ void *ClientExec(void *t) { //Called from pthread
 		j++;
 	}
 
-	// Release all allocated resources for the given Client
+	//Release resources now that client is complete
 	printf("\tClient is releasing resources\n");
 	SilentRelease(InputArray);
 
-	// Display the new available matrix (all resource instances should now be
-	// available)
-	
+	//print out updated matrices
 	printf("\tNow available:");
 	for (int i = 0; i < ResourceCount; i++) {
 		printf(" %i", Available[i]);
 	}
 	printf("\n");
 
-	// Critical section ends here
+	//End the crit section 
 
-	// Unlock the mutex so that the next Client can access it
+	//open  mutex lock for next client
 	pthread_mutex_unlock(&mutex);
 
-	// Upon completion, terminate the Client
+	//all done, time to exit!
 	pthread_exit(0);
 	return 0;
 }
@@ -497,7 +488,7 @@ void Run(Client **clients) {
 		pthread_join((*clients)[i].threadHandle, NULL);
 	}
 
-	//Once finished with the critical sections of each client, clean up mutex locks
+	//Clean up mutex locks now that we're done
 	pthread_mutex_destroy(&mutex);
 }
 
